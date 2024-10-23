@@ -24,6 +24,21 @@ app.use(cors({ origin: "http://localhost:3000" })); // Cấu hình CORS cho Expr
 // routes
 app.post("/send-api", controller.sendMessageToKafka);
 
+let lastStockData = null;
+
+// API mới để trả về dữ liệu từ Kafka qua HTTP
+app.get("/stock-data", (req, res) => {
+    const checkForNewData = () => {
+        if (lastStockData) {
+            res.json({ stockData: lastStockData });
+        } else {
+            // Nếu chưa có dữ liệu mới, tiếp tục chờ một chút rồi kiểm tra lại
+            setTimeout(checkForNewData, 2000); // Kiểm tra lại sau 2 giây
+        }
+    };
+    checkForNewData();
+});
+
 /**
  * Config Kafka
  * Consume from topic
@@ -34,6 +49,8 @@ const startKafkaConsumer = async () => {
     try {
         await kafka.consume(TOPIC_NAME, async (value) => {
             const stockData = await fetchData(); // Gọi hàm fetchData
+            console.log("Received data from Kafka:", stockData); // Log dữ liệu từ Kafka
+            lastStockData = stockData;
             io.emit('stockData', stockData); // Phát dữ liệu qua WebSocket
         });
     } catch (error) {
@@ -42,16 +59,14 @@ const startKafkaConsumer = async () => {
 };
 startKafkaConsumer();
 
-let lastStockData = null;
-
 // Gọi fetchData liên tục mỗi 5 giây
 setInterval(async () => {
     try {
         const stockData = await fetchData();
-        console.log(`stockData:: `, stockData)
-        // Kiểm tra dữ liệu trước khi phát qua WebSocket
+        console.log(`Fetched stockData:: `, stockData); // Log dữ liệu từ fetchData
         if (stockData) {
             console.log('Emitting stockData via WebSocket:', stockData);
+            lastStockData = stockData; // Cập nhật lastStockData khi có dữ liệu
             io.emit('stockData', stockData); // Phát dữ liệu qua WebSocket
         } else {
             console.log('No data to emit.');
@@ -61,19 +76,22 @@ setInterval(async () => {
     }
 }, 5000);
 
-// // Lắng nghe kết nối WebSocket
-// io.on('connection', (socket) => {
-//     console.log('New client connected');
 
-//     // Gửi dữ liệu ngay khi client kết nối (nếu cần)
-//     socket.emit('stockData', { message: 'Initial stock data' });
+// Lắng nghe kết nối WebSocket
+io.on('connection', (socket) => {
+    console.log('New client connected');
 
-//     socket.on('disconnect', () => {
-//         console.log('Client disconnected');
-//     });
-// });
+    // Gửi dữ liệu ngay khi client kết nối (nếu cần)
+    if (lastStockData) {
+        socket.emit('stockData', lastStockData);
+    }
+
+    socket.on('disconnect', () => {
+        console.log('Client disconnected');
+    });
+});
 
 // Khởi động server HTTP và WebSocket trên cổng 5000
-server.listen(5000, () => {
+server.listen(5001, () => {
     console.log('Server is running on port 5000');
 });
