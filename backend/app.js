@@ -107,12 +107,9 @@ app.post("/update-stock-data", async (req, res) => {
     lastStockData = { buy, date, sell, total, waitbuy, waitsell };
 
     try {
-        // Gửi dữ liệu lên Kafka
-        const message = {
-            value: JSON.stringify(lastStockData),
-        };
-        await kafka.produce(TOPIC_NAME, [message]);
-        console.log("Sent data to Kafka:", lastStockData);
+        // Gọi Kafka Producer để gửi dữ liệu lên Kafka
+        await startKafkaProducer(lastStockData);
+        console.log("Sent data to Kafka from API POST");
 
         // Phát dữ liệu qua WebSocket tới các client
         io.emit('stockData', lastStockData);
@@ -178,6 +175,21 @@ app.post("/update-stock-data", async (req, res) => {
 //         console.log('Client disconnected');
 //     });
 // });
+
+
+// Lắng nghe kết nối WebSocket
+io.on('connection', (socket) => {
+    console.log('New client connected');
+
+    // Gửi dữ liệu ngay khi client kết nối nếu có dữ liệu mới nhất
+    if (lastStockData) {
+        socket.emit('stockData', lastStockData);
+    }
+
+    socket.on('disconnect', () => {
+        console.log('Client disconnected');
+    });
+});
 
 startKafkaProducer();
 
