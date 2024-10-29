@@ -1,31 +1,34 @@
 import KafkaConfig from "../configs/kafka.config.js";
 import { TOPIC_NAME } from "../constants/values.contants.js";
+import { fetchData } from "../apis/fetchData.js";
 
-const kafkaConfig = new KafkaConfig(); // Khởi tạo KafkaConfig bên ngoài hàm
+const kafka = new KafkaConfig();
 
-const sendMessageToKafka = async (req, res) => {
+const startKafkaProducer = async () => {
     try {
-        const { message } = req.body;
+        await kafka.initProducer();
 
-        const messages = [
-            {
-                key: 'key1',
-                value: message,
-            },
-        ];
-
-        // Chờ cho tin nhắn được gửi thành công
-        await kafkaConfig.produce(TOPIC_NAME, messages);
-
-        res.status(200).json({ message: "Message sent to Kafka" });
+        // Gọi fetchData định kỳ mỗi 5 giây và gửi dữ liệu vào Kafka
+        setInterval(async () => {
+            try {
+                const stockData = await fetchData();
+                if (stockData) {
+                    const message = {
+                        value: JSON.stringify(stockData),
+                    };
+                    await kafka.produce(TOPIC_NAME, [message]);
+                    console.log("Sent data to Kafka:", stockData);
+                } else {
+                    console.log("No data fetched from API");
+                }
+            } catch (error) {
+                console.error("Error fetching or sending data:", error);
+            }
+        }, 5000); // Thời gian gọi API có thể điều chỉnh tùy theo nhu cầu
     } catch (error) {
-        console.error("Error sending message to Kafka:", error);
-        res.status(500).json({ error: "Failed to send message to Kafka" });
+        console.error("Error starting Kafka Producer:", error);
     }
-}
-
-const controller = {
-    sendMessageToKafka,
 };
 
-export default controller;
+
+export default startKafkaProducer;

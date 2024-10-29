@@ -11,40 +11,46 @@ class KafkaConfig {
         this.consumer = this.Kafka.consumer({ groupId: "stock-group" });
     }
 
-    async produce(topic, messages) {
+    async initProducer() {
         try {
-            await this.producer.connect()
-
-            await this.producer.send({
-                topic: topic,
-                messages: messages,
-            })
+            await this.producer.connect();
+            console.log("Kafka Producer connected");
         } catch (error) {
-            console.log(error)
-        }
-        finally {
-            await this.producer.disconnect()
+            console.error("Error connecting Kafka Producer:", error);
         }
     }
 
-    async consume(topic, callback) {
+    async initConsumer(topic, callback) {
         try {
-            await this.consumer.connect()
-            await this.consumer.subscribe({
-                topic: topic,
-                fromBeginning: true,
-            })
+            await this.consumer.connect();
+            await this.consumer.subscribe({ topic: topic, fromBeginning: false });
 
             await this.consumer.run({
                 eachMessage: async ({ topic, partition, message }) => {
-                    const value = message.value.toString()
-                    callback(value)
-                }
-            })
+                    const value = message.value.toString();
+                    callback(value);
+                },
+            });
+
+            console.log("Kafka Consumer connected and listening");
         } catch (error) {
-            console.log(error)
+            console.error("Error connecting Kafka Consumer:", error);
         }
     }
+
+    async produce(topic, messages) {
+        try {
+            await this.producer.send({
+                topic: topic,
+                messages: messages,
+            });
+            console.log("Message sent to Kafka:", messages);
+        } catch (error) {
+            console.error("Error sending message to Kafka:", error);
+        }
+    }
+
+
 }
 
 export default KafkaConfig

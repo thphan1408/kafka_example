@@ -15,10 +15,10 @@ const fetchData = async (page = 1, limit = 10, sortOrder = 'asc') => {
         );
 
         const stocks = apiResponse.data.StockWaveRealReply.waveDataReal; // Lấy dữ liệu cần thiết
-        const sortedStocks = sortStocks([stocks], sortOrder); // Sắp xếp dữ liệu
-        const paginatedStocks = paginateStocks(sortedStocks, page, limit); // Phân trang dữ liệu
+        // const sortedStocks = sortStocks([stocks], sortOrder); // Sắp xếp dữ liệu
+        // const paginatedStocks = paginateStocks(sortedStocks, page, limit); // Phân trang dữ liệu
 
-        return paginatedStocks; // Trả về dữ liệu đã sắp xếp và phân trang
+        return stocks; // Trả về dữ liệu đã sắp xếp và phân trang
     } catch (error) {
         console.error("Error calling API:", error);
     }
